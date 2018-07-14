@@ -1,8 +1,130 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
-  "parameters": {},
+  "parameters": {
+    "templateBaseUri": {
+      "type": "string"
+    },
+    "resourcegroup": {
+      "type": "string"
+    },
+    "hostingPlanName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "F1",
+      "allowedValues": [
+        "F1",
+        "D1",
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "metadata": {
+        "description": "Describes plan's pricing tier and instance size. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+      }
+    },
+    "skuCapacity": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 1,
+      "metadata": {
+        "description": "Describes plan's instance count"
+      }
+    },
+    "websiteName": {
+      "type": "string"
+    },
+    "vaultName": {
+      "type": "string"
+    },
+    "AD.TenantId": {
+      "type": "string"
+    },
+    "AD.ObjectId": {
+      "type": "string"
+    }
+  },
   "variables": {},
-  "resources": [],
+  "resources": [
+    {
+      "name": "[parameters('vaultName')]",
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2016-10-01",
+      "location": "West Europe",
+      "tags": {},
+      "properties": {
+        "tenantId": "[parameters('AD.TenantId')]",
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "accessPolicies": [
+          {
+            "tenantId": "[parameters('AD.TenantId')]",
+            "objectId": "[parameters('AD.ObjectId')]",
+            "permissions": {
+              "keys": [],
+              "secrets": [
+                "get"
+              ],
+              "certificates": [],
+              "storage": []
+            }
+          }
+        ],
+        "enabledForTemplateDeployment": true
+      }
+    },
+    {
+      "apiVersion": "2015-01-01",
+      "name": "nestedTemplate",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('templateBaseUri'), 'my-nested-template.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "resourcegroup": {
+            "value": "[parameters('resourcegroup')]"
+          },
+          "hostingPlanName": {
+            "value": "[parameters('hostingPlanName')]"
+          },
+          "skuName": {
+            "value": "[parameters('skuName')]"
+          },
+          "skuCapacity": {
+            "value": "[parameters('skuCapacity')]"
+          },
+          "websiteName": {
+            "value": "[parameters('websiteName')]"
+          },
+          "vaultName": {
+            "value": "[parameters('vaultName')]"
+          },
+          "mySuperSecretValueForTheAppService": {
+            "reference": {
+              "keyVault": {
+                "id": "[resourceId(subscription().subscriptionId,  parameters('resourcegroup'), 'Microsoft.KeyVault/vaults', parameters('vaultName'))]"
+              },
+              "secretName": "MySuperSecretValueForTheAppService"
+            }
+          }
+        }
+      }
+    }
+  ],
   "outputs": {}
 }
